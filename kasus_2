@@ -1,0 +1,133 @@
+import tkinter as tk
+import math
+
+class HotPotatoAnimation:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Hot Potato Animation")
+
+        self.canvas = tk.Canvas(root, width=700, height=650, bg="#f4f6f7")
+        self.canvas.pack()
+
+        self.players = ["Andra", "Epi", "Dapa", "Farhan", "Faza"]
+        self.positions = []
+        self.player_objs = []
+
+        self.center_x = 350
+        self.center_y = 320
+        self.radius = 220
+
+        self.ball = None
+        self.current_index = 0
+        self.num_pass = 3
+
+        self.draw_players()
+
+    def draw_players(self):
+        self.canvas.delete("all")
+        self.positions.clear()
+        self.player_objs.clear()
+
+        self.canvas.create_text(350, 40, text="HOT POTATO GAME",
+                                font=("Arial", 18, "bold"), fill="#2c3e50")
+
+        n = len(self.players)
+
+        for i, name in enumerate(self.players):
+            angle = 2 * math.pi * i / n
+            x = self.center_x + self.radius * math.cos(angle)
+            y = self.center_y + self.radius * math.sin(angle)
+
+            self.positions.append((x, y))
+
+            circle = self.canvas.create_oval(x-30, y-30, x+30, y+30,
+                                             fill="#5DADE2", outline="")
+            text = self.canvas.create_text(x, y, text=name, fill="white",
+                                           font=("Arial", 10, "bold"))
+
+            self.player_objs.append((circle, text))
+
+    def highlight_player(self, index, color):
+        circle, _ = self.player_objs[index]
+        self.canvas.itemconfig(circle, fill=color)
+
+    def move_ball(self, start, end, callback=None, step=0):
+        x1, y1 = self.positions[start]
+        x2, y2 = self.positions[end]
+
+        if step == 0:
+            if self.ball:
+                self.canvas.delete(self.ball)
+            self.ball = self.canvas.create_oval(x1-10, y1-10, x1+10, y1+10, fill="red")
+
+        if step >= 20:
+            if callback:
+                callback()
+            return
+
+        dx = (x2 - x1) / 20
+        dy = (y2 - y1) / 20
+
+        self.canvas.move(self.ball, dx, dy)
+        self.root.after(30, lambda: self.move_ball(start, end, callback, step+1))
+
+    def pass_ball(self, count, callback):
+        if count == 0:
+            callback()
+            return
+
+        next_index = (self.current_index + 1) % len(self.players)
+
+        self.highlight_player(self.current_index, "#5DADE2")
+        self.highlight_player(next_index, "#F4D03F")  # aktif
+
+        self.move_ball(self.current_index, next_index,
+                       lambda: self.finish_pass(next_index, count, callback))
+
+    def finish_pass(self, next_index, count, callback):
+        self.current_index = next_index
+        self.pass_ball(count-1, callback)
+
+    def eliminate(self, callback):
+        index = self.current_index
+        x, y = self.positions[index]
+
+        # efek eliminasi
+        self.canvas.create_text(x, y-50, text="OUT ❌",
+                                fill="red", font=("Arial", 12, "bold"))
+
+        circle, text = self.player_objs[index]
+        self.canvas.itemconfig(circle, fill="gray")
+        self.canvas.itemconfig(text, fill="black")
+
+        def remove():
+            self.players.pop(index)
+            self.current_index = index % len(self.players)
+            self.draw_players()
+            self.root.after(500, callback)
+
+        self.root.after(800, remove)
+
+    def game_step(self):
+        if len(self.players) == 1:
+            self.show_winner()
+            return
+
+        self.pass_ball(self.num_pass, lambda: self.eliminate(self.game_step))
+
+    def show_winner(self):
+        self.canvas.create_text(350, 600,
+                                text=f"🏆 PEMENANG: {self.players[0]}",
+                                font=("Arial", 16, "bold"),
+                                fill="#27ae60")
+
+    def run(self):
+        # highlight awal
+        self.highlight_player(0, "#F4D03F")
+        self.root.after(1000, self.game_step)
+
+
+root = tk.Tk()
+app = HotPotatoAnimation(root)
+root.after(500, app.run)
+root.mainloop()

@@ -1,0 +1,122 @@
+import tkinter as tk
+
+class BFSAnimation:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("BFS Animation")
+
+        self.canvas = tk.Canvas(root, width=900, height=550, bg="#f4f6f7")
+        self.canvas.pack()
+
+        # Graph
+        self.graph = {
+            "A":["B","C"],
+            "B":["D","E"],
+            "C":["F"],
+            "D":[], "E":[], "F":[]
+        }
+
+        # posisi node
+        self.pos = {
+            "A":(450,100),
+            "B":(250,230),
+            "C":(650,230),
+            "D":(200,380),
+            "E":(350,380),
+            "F":(650,380)
+        }
+
+        self.nodes = {}
+        self.edges = []
+
+        # BFS state
+        self.queue = []
+        self.visited = set()
+
+        self.draw_graph()
+        self.draw_ui()
+
+    # ================= DRAW =================
+    def draw_graph(self):
+        # edges
+        for n in self.graph:
+            x,y = self.pos[n]
+            for neigh in self.graph[n]:
+                x2,y2 = self.pos[neigh]
+                line = self.canvas.create_line(x,y,x2,y2,width=2,fill="#7f8c8d")
+                self.edges.append(line)
+
+        # nodes
+        for n,(x,y) in self.pos.items():
+            self.nodes[n] = self.canvas.create_oval(
+                x-25,y-25,x+25,y+25,
+                fill="white", outline="#2c3e50", width=2
+            )
+            self.canvas.create_text(x,y,text=n,font=("Arial",11,"bold"))
+
+    def draw_ui(self):
+        # queue box
+        self.canvas.create_text(450,480,text="QUEUE",font=("Arial",12,"bold"))
+        self.canvas.create_rectangle(200,500,700,540,outline="#2c3e50")
+
+        self.status = self.canvas.create_text(450,520,text="",font=("Arial",11))
+
+    def update_queue_visual(self):
+        self.canvas.delete("queue_item")
+        x = 220
+        for item in self.queue:
+            self.canvas.create_rectangle(x,505,x+40,535,
+                                         fill="#f1c40f",tags="queue_item")
+            self.canvas.create_text(x+20,520,text=item,tags="queue_item")
+            x += 50
+
+    # ================= COLOR =================
+    def color_node(self,node,color):
+        self.canvas.itemconfig(self.nodes[node],fill=color)
+
+    # ================= BFS =================
+    def start_bfs(self, start):
+        self.queue = [start]
+        self.visited = {start}
+
+        self.color_node(start,"#f1c40f")  # masuk queue
+        self.update_queue_visual()
+
+        self.root.after(1000, self.step)
+
+    def step(self):
+        if not self.queue:
+            self.canvas.itemconfig(self.status,text="✅ BFS Selesai")
+            return
+
+        current = self.queue.pop(0)
+        self.update_queue_visual()
+
+        # node diproses
+        self.color_node(current,"#3498db")
+        self.canvas.itemconfig(self.status,text=f"Proses Node: {current}")
+
+        def process_neighbors():
+            for neigh in self.graph[current]:
+                if neigh not in self.visited:
+                    self.visited.add(neigh)
+                    self.queue.append(neigh)
+
+                    self.color_node(neigh,"#f1c40f")  # masuk queue
+
+            # selesai diproses
+            self.color_node(current,"#2ecc71")
+            self.update_queue_visual()
+
+            self.root.after(1000, self.step)
+
+        self.root.after(800, process_neighbors)
+
+
+# ================= MAIN =================
+root = tk.Tk()
+app = BFSAnimation(root)
+
+root.after(1000, lambda: app.start_bfs("A"))
+
+root.mainloop()

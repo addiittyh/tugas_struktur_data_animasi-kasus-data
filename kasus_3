@@ -1,0 +1,151 @@
+import tkinter as tk
+
+class HospitalAnimation:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Antrian Rumah Sakit - Priority Queue")
+
+        self.canvas = tk.Canvas(root, width=950, height=550, bg="#f4f6f7")
+        self.canvas.pack()
+
+        # priority queue (0 paling tinggi)
+        self.queues = [[], [], [], []]
+
+        self.colors = ["#e74c3c", "#f39c12", "#f1c40f", "#2ecc71"]
+        self.labels = ["Kritis", "Darurat", "Menengah", "Ringan"]
+
+        self.start_x = 250
+        self.y_levels = [120, 200, 280, 360]
+
+        self.draw_static()
+
+    # ================= UI =================
+    def draw_static(self):
+        self.canvas.create_text(475, 40, text="ANTRIAN RUMAH SAKIT (PRIORITY QUEUE)",
+                                font=("Arial", 18, "bold"), fill="#2c3e50")
+
+        # label
+        for i, label in enumerate(self.labels):
+            self.canvas.create_text(120, self.y_levels[i],
+                                    text=label, font=("Arial", 11, "bold"))
+
+        # dokter
+        self.canvas.create_rectangle(750, 200, 880, 320, fill="#d5d8dc", outline="")
+        self.canvas.create_text(815, 260, text="👨‍⚕️", font=("Arial", 22))
+
+        # status
+        self.status = self.canvas.create_text(475, 500, text="",
+                                              font=("Arial", 12, "bold"))
+
+    def draw_queue(self):
+        self.canvas.delete("queue")
+
+        for p in range(4):
+            x = self.start_x
+            y = self.y_levels[p]
+
+            for name in self.queues[p]:
+                self.canvas.create_rectangle(x+3, y-17, x+93, y+23,
+                                             fill="#bdc3c7", outline="", tags="queue")
+
+                self.canvas.create_rectangle(x, y-20, x+90, y+20,
+                                             fill=self.colors[p], outline="", tags="queue")
+
+                self.canvas.create_text(x+45, y, text=name,
+                                        fill="white", font=("Arial", 10, "bold"),
+                                        tags="queue")
+                x += 100
+
+    # ================= ANIMASI =================
+    def animate_move(self, rect, text, dx, steps, callback=None):
+        if steps <= 0:
+            if callback:
+                callback()
+            return
+
+        self.canvas.move(rect, dx/steps, 0)
+        self.canvas.move(text, dx/steps, 0)
+
+        self.root.after(20, lambda: self.animate_move(rect, text, dx-dx/steps, steps-1, callback))
+
+    def enqueue(self, name, prio, callback=None):
+        # animasi masuk dari kiri
+        y = self.y_levels[prio]
+        rect = self.canvas.create_rectangle(50, y-20, 140, y+20,
+                                            fill=self.colors[prio], outline="")
+        text = self.canvas.create_text(95, y, text=name, fill="white")
+
+        target_x = self.start_x + len(self.queues[prio]) * 100
+        dx = target_x - 50
+
+        def finish():
+            self.canvas.delete(rect)
+            self.canvas.delete(text)
+            self.queues[prio].append(name)
+            self.draw_queue()
+
+            if callback:
+                self.root.after(300, callback)
+
+        self.animate_move(rect, text, dx, 20, finish)
+
+    def dequeue(self, callback=None):
+        for p in range(4):
+            if self.queues[p]:
+                name = self.queues[p].pop(0)
+                y = self.y_levels[p]
+                self.draw_queue()
+
+                rect = self.canvas.create_rectangle(self.start_x, y-20,
+                                                    self.start_x+90, y+20,
+                                                    fill="#3498db", outline="")
+                text = self.canvas.create_text(self.start_x+45, y,
+                                               text=name, fill="white")
+
+                dx = 500  # ke dokter
+
+                def finish():
+                    self.canvas.delete(rect)
+                    self.canvas.delete(text)
+
+                    self.canvas.itemconfig(self.status,
+                                           text=f"👨‍⚕️ Melayani: {name}")
+
+                    if callback:
+                        self.root.after(700, callback)
+
+                self.animate_move(rect, text, dx, 25, finish)
+                return
+
+    # ================= FLOW =================
+    def run(self):
+        data = [
+            ("Budi", 3),
+            ("Ani", 0),
+            ("Citra", 2),
+            ("Dedi", 0),
+            ("Eka", 1)
+        ]
+
+        def enqueue_step(i):
+            if i < len(data):
+                self.enqueue(data[i][0], data[i][1],
+                             lambda: enqueue_step(i+1))
+            else:
+                self.root.after(800, dequeue_step)
+
+        def dequeue_step():
+            if any(self.queues):
+                self.dequeue(dequeue_step)
+            else:
+                self.canvas.itemconfig(self.status,
+                                       text="✅ Semua pasien selesai dilayani")
+
+        enqueue_step(0)
+
+
+# ================= MAIN =================
+root = tk.Tk()
+app = HospitalAnimation(root)
+root.after(500, app.run)
+root.mainloop()
